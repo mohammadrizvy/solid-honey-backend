@@ -20,7 +20,6 @@ def create_new_account(request):
     print('called success')
     if request.method=='POST':
         data = json.loads(request.body.decode('utf-8'))
-        print(data)
         name=data.get('name')
         email=data.get('email')
         password=data.get('password')
