@@ -20,5 +20,6 @@ from . import views
 urlpatterns = [
     path("all/product", views.sale_all_product, name="sale_all_product"),
     path("singup", views.create_new_account, name="create_new_account"),
+    path("login/", views.login, name="login"),
 ]
 
