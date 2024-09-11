@@ -21,5 +21,9 @@ urlpatterns = [
     path("all/product", views.sale_all_product, name="sale_all_product"),
     path("singup", views.create_new_account, name="create_new_account"),
     path("login/", views.login, name="login"),
+    path("add/to/card/entry/", views.add_to_card_entry, name="add_to_card_entry"),
+    path("add/to/card/list/", views.add_to_card_list, name="add_to_card_list"),
+    path("add/to/card/list/<str:id>/", views.add_to_card_view, name="add_to_card_view"),
+
 ]
 

@@ -44,7 +44,6 @@ def sale_all_product(request):
 def create_new_account(request):
     if request.method=='POST':
         data = json.loads(request.body.decode('utf-8'))
-        print(data)
         name=data.get('name')
         email=data.get('email')
         password=data.get('password')
@@ -52,3 +51,36 @@ def create_new_account(request):
         new_user.set_password(password)
         new_user.save()
     return JsonResponse({"successfull":'date entry successfully'})
+
+
+
+
+
+def add_to_card_entry(request):
+    if request.method=='POST':
+        data = json.loads(request.body.decode('utf-8'))
+        product_id= data.get('product_id')
+        qt= data.get('qt')
+        Product_Add_TO_Card.objects.create(user=request.user,
+                                           product_id=product_id,
+                                           qt=qt)
+        return JsonResponse({'message':'succesfully entry'})
+    return JsonResponse({'message':'Pending'})
+
+
+def add_to_card_list(request):
+    pcs=Product_Add_TO_Card.objects.filter(user=request.user, 
+                                           active=True)
+    context={
+        'pcs':list(pcs.values())
+    }
+    return JsonResponse(context)
+
+
+def add_to_card_view(request, id):
+    pcs=Product_Add_TO_Card.objects.filter(user=request.user, 
+                                           active=True)
+    context={
+        'pcs':list(pcs.values())
+    }
+    return JsonResponse(context)
