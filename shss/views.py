@@ -61,9 +61,12 @@ def add_to_card_entry(request):
         data = json.loads(request.body.decode('utf-8'))
         product_id= data.get('product_id')
         qt= data.get('qt')
-        Product_Add_TO_Card.objects.create(user=request.user,
+        try:
+            Product_Add_TO_Card.objects.create(user_id=1,#request.user,
                                            product_id=product_id,
                                            qt=qt)
+        except Exception as e:
+            print(e)
         return JsonResponse({'message':'succesfully entry'})
     return JsonResponse({'message':'Pending'})
 
@@ -78,9 +81,8 @@ def add_to_card_list(request):
 
 
 def add_to_card_view(request, id):
-    pcs=Product_Add_TO_Card.objects.filter(user=request.user, 
-                                           active=True)
+    pcs=Product_Add_TO_Card.objects.get(id=id)
     context={
-        'pcs':list(pcs.values())
+        'pcs':list(pcs)
     }
     return JsonResponse(context)
