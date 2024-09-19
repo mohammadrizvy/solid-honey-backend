@@ -59,13 +59,14 @@ REST_FRAMEWORK = {"DEFAULT_PERMISSION_CLASSES": [
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+APPEND_SLASH=False
 
 ROOT_URLCONF = 'SHSSSHPOS.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [''],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
