@@ -5,22 +5,27 @@ import json
 from django.contrib import auth
 from django.contrib.auth.models import Group, User
 # Create your views here.
+from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
 
 
 def login(request):
     if request.method=="POST":
         data = json.loads(request.body.decode('utf-8'))
-        print(data)
+        # print(data)
         phone_number=data.get('email')
         password=data.get('password')
         user=auth.authenticate(username=phone_number, password=password)
         if user is not None:
             auth.login(request, user)
             # if user.is_superuser:
+            refresh = RefreshToken.for_user(request.user)
+            # print(user, refresh.access_token)
             return JsonResponse({'success':'Login successfully', 
                                  'name':user.first_name,
-                                 'email':user.email})
+                                 'email':user.email,
+                                 'access_token':str(refresh.access_token)
+                                 })
             # return JsonResponse({'success':'Admin'})
             
             # else:
@@ -82,6 +87,23 @@ def sale_all_product(request):
                 'images':[img.image.url for img in sp.product_images_set.all()]} for sp in sps]
     }
     return JsonResponse(context)
+
+def sale_one_product(request, id):
+    sp=Saleing_Product.objects.get(id=id)
+    context={
+        'id':sp.id, 
+        'title':sp.title, 
+        'category':sp.category.category, 
+        'description':sp.discription,
+        'price':sp.price, 
+        'rating': sp.product_rating_set.all().aggregate(Avg('rating'))['rating__avg'],
+        'images':[img.image.url for img in sp.product_images_set.all()]
+
+    }
+    return JsonResponse(context)
+
+
+
 
 # name, number/email, password
 def create_new_account(request):
@@ -146,3 +168,20 @@ def add_to_card_remove(request, id):#Product_Add_TO_Card table id
     pcs.active=False
     pcs.save()
     return JsonResponse({})
+
+
+
+def card_increase(request, id):#cart/increase/
+    pcs=Product_Add_TO_Card.objects.get(id=id)
+    pcs.qt += 1
+    pcs.save()
+    return JsonResponse({})
+
+def card_decrease(request, id):#cart/increase/
+    pcs=Product_Add_TO_Card.objects.get(id=id)
+    pcs.qt -= 1
+    pcs.save()
+    return JsonResponse({})
+
+
+

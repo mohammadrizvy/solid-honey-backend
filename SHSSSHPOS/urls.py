@@ -24,3 +24,5 @@ urlpatterns = [
     path("shss/", include('shss.urls')),
     path("pos/", include('shpos.urls')),
 ]
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
