@@ -2,6 +2,8 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.db.models import *
 import json
+import string
+import random
 from django.contrib import auth
 from django.contrib.auth.models import Group, User
 # Create your views here.
@@ -37,25 +39,7 @@ def login(request):
     
 
 
-'''
-    Response : 
-	{
-  "user_id": "62d0ff5f8e7b5b3f4e0c8b33",
-  "username": "john_doe",
-  "email": "john@example.com",
-  "joined_date": "2024-07-16",
-  "orders": [
-    {
-      "order_id": "order123",
-      "status": "delivered",
-      "total": 89.99,
-      "order_date": "2024-09-01"
-    }
-  ]
-}
 
-
-'''
 def profile(request):
     obj_user=User.objects.get(id=1)
     orders=My_Orders.objects.filter(cart__user__id=1)#obj_user.
@@ -78,11 +62,13 @@ def profile(request):
 
 
 def sale_all_product(request):
-    sps=Saleing_Product.objects.all()
+    sps=Saleing_Product.objects.filter(active=True)
     context={
         'sps':[{'id':sp.id, 'title':sp.title, 'category':sp.category.category, 
                 'description':sp.discription,
                 'price':sp.price, 
+                'discount':10,#sp.product_discount if sp.product_discount else  00, 
+                'stock': random.randint(100,1000),
                 'rating': sp.product_rating_set.all().aggregate(Avg('rating'))['rating__avg'],
                 'images':[img.image.url for img in sp.product_images_set.all()]} for sp in sps]
     }
@@ -96,6 +82,7 @@ def sale_one_product(request, id):
         'category':sp.category.category, 
         'description':sp.discription,
         'price':sp.price, 
+        'stock': random.randint(100,1000),
         'rating': sp.product_rating_set.all().aggregate(Avg('rating'))['rating__avg'],
         'images':[img.image.url for img in sp.product_images_set.all()]
 
@@ -123,7 +110,7 @@ def create_new_account(request):
 
 def add_to_card_entry(request):
     data = json.loads(request.body.decode('utf-8'))
-    id=data['product']['id']
+    id=data.get('productId')
     check=Product_Add_TO_Card.objects.filter(user_id=1,#request.user,
                                     product_id=id,
                                     active=True
@@ -142,9 +129,12 @@ def add_to_card_entry(request):
 
 
 def add_to_card_list(request):
-    print(request.user, 'here ima card list')
     patcs=Product_Add_TO_Card.objects.filter(user_id=1,#request.user, 
                                            active=True)
+    
+    total=0
+    for patc in patcs:
+        total+=patc.product.price*patc.qt
     context={
         'patcs':[{'img':patc.product.product_images_set.last().image.url if patc.product.product_images_set.all() else "None", 
                   'product_name':patc.product.title,
@@ -152,7 +142,8 @@ def add_to_card_list(request):
                   'qt':patc.qt, 
                   'id':patc.id,
                   'category':patc.product.category.category}
-                     for patc in patcs]
+                     for patc in patcs],
+        'total':total
     }
     return JsonResponse(context)
 
@@ -184,4 +175,107 @@ def card_decrease(request, id):#cart/increase/
     return JsonResponse({})
 
 
+def payment_checkout(request):
+    if request.method=='POST':
+        data = json.loads(request.body.decode('utf-8'))
+        # print(data)
+        cards=data.get('cart_ids')
+        payment_method=data.get('payment_method')
+        shipping_address=data.get('shipping_address')
+        order_id = ''.join([random.choice(string.ascii_letters
+                + string.digits) for n in range(32)])
+        # print(cards)
+        for card in cards:
+            obj_sp=Product_Add_TO_Card.objects.get(id=card)
+            My_Check_Out.objects.create(
+                user_id=1,#request.user.id
+                cart_id=obj_sp.product.id,
+                price=obj_sp.product.price,
+                qt=obj_sp.qt,
+                order_id=order_id,
+                address=shipping_address,
+                payment_method=payment_method,
+                status=False
+            )
+        return JsonResponse({
+                    "order_id": order_id,
+                    "message": "Payment processed successfully",
+                    "status": "completed"
+                    })
+    return JsonResponse({})
 
+
+
+#*************************************admin ****************************** 
+
+def product_category_entry(request):
+    if request.method=="POST":
+        data = json.loads(request.body.decode('utf-8'))
+
+        category=data.get('category_name')
+    
+        new_cat=Web_Category(category=category)
+        new_cat.save()
+        context={
+        "message": "Category added successfully",
+        "category_id": new_cat.id
+        }
+        return JsonResponse(context)
+    return JsonResponse({})
+
+def product_categories(request):
+    categorys=Web_Category.objects.all()
+    context={
+        'categories':[{'id':category.id, "name":category.category}
+                       for category in categorys]
+    }
+    return JsonResponse(context)
+
+
+
+def create_product(request):
+    if request.method=="POST":
+        title = request.POST.get('title')
+        image = request.FILES.get('image')
+        category = request.POST.get('category')
+        description = request.POST.get('description')
+        price = request.POST.get('price')
+        stock = request.POST.get('stock')
+
+        obj_category=Web_Category.objects.get(category=category)
+
+        new_sp=Saleing_Product(
+            category=obj_category,
+            title=title,
+            discription=description,
+            price=price,
+            entry_by_id=1
+        )
+        new_sp.save()
+        new_sp.stock_saleing_product_set.create(
+            qt=stock
+        )
+        #for image in image:
+        new_sp.product_images_set.create(
+                image=image
+            )
+    return JsonResponse({})
+
+
+def all_users(request):
+    users=User.objects.filter(is_staf=False)
+    context={
+        'users':[{'name':user.first_name,
+                  'email':user.email,
+                  'created_date':user.date_joined} for user in users]
+    }
+    return JsonResponse(context)
+
+
+def product_delete(request, id):
+    Saleing_Product.objects.filter(id=id).update(active=False)
+    return JsonResponse({'message':"Product delete sucessfully"})
+
+def product_update(request, id):
+    obj_sp=Saleing_Product.objects.get(id=id)
+    return JsonResponse({})

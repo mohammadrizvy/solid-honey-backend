@@ -1,16 +1,49 @@
 from django.db import models
-from shpos.models import Category, User
+from shpos.models import  User
+
+class Web_Category(models.Model):
+    category=models.CharField(max_length=255)
+
+    def __str__(self):
+        return f'{self.category}'
 
 # Create your models here.
 class Saleing_Product(models.Model):
-    category=models.ForeignKey(Category, on_delete=models.CASCADE)
+    category=models.ForeignKey(Web_Category, on_delete=models.CASCADE)
     title=models.CharField(max_length=255)
     discription=models.TextField(max_length=2500)
     price=models.FloatField()
     date=models.DateTimeField(auto_now_add=True)
     entry_by=models.ForeignKey(User, on_delete=models.CASCADE)
+    active=models.BooleanField(default=True)
+    '''
+    true mean sale able products
+    false meaning not sale able products
+    '''
     def __str__(self):
         return f'{self.category} {self.title}'
+
+
+class Product_Discount(models.Model):
+    sp=models.OneToOneField(Saleing_Product, on_delete=models.CASCADE)
+    date=models.DateTimeField(auto_now_add=True)
+    amount=models.FloatField()
+    active=models.BooleanField(default=True)
+    '''
+        if active then discount aviable else not
+    '''
+
+    def ratio(self):
+        ratio=self.amount*100/self.ap.price
+        return ratio
+
+class Stock_Saleing_Product(models.Model):
+    sp=models.ForeignKey(Saleing_Product, on_delete=models.CASCADE)
+    date=models.DateTimeField(auto_now_add=True)
+    qt=models.PositiveIntegerField()
+
+    def __str__(self):
+        return f'{self.sp} {self.date} {self.qt}'
 
 
 class Product_Images(models.Model):
@@ -43,15 +76,26 @@ class Product_Add_TO_Card(models.Model):
         return f'{self.product} {self.qt} {self.user}'
     
 
-class My_Orders(models.Model):
-    cart=models.OneToOneField(Product_Add_TO_Card, on_delete=models.CASCADE)
+class My_Check_Out(models.Model):
+    user=models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    cart=models.ForeignKey(Saleing_Product, on_delete=models.CASCADE)
+    price=models.FloatField(null=True, blank=True)
+    qt=models.FloatField()
+
+    address=models.TextField(500)
+    payment_method=models.CharField(max_length=255)
     date=models.DateTimeField(auto_now_add=True)
     order_id=models.CharField(max_length=12)
     status=models.BooleanField(default=False)
+
     '''
     if false then pending
     else delivarid
     '''
+
+    def total_amount(self):
+        return self.qt * self.price
+    
 
     def __str__(self):
         return f'{self.cart} {self.date} {self.order_id}'
