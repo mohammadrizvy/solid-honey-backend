@@ -36,8 +36,15 @@ urlpatterns = [
     path("product/category/entry", views.product_category_entry, name="product_category_entry"),
     path("add/product", views.create_product, name="create_product"),
     path("admin/product/remove/<str:id>", views.product_delete, name="product_delete"),
-    path("all/users/", views.all_users, name="all_users"),
-
+    path("admin/all/users/", views.all_users, name="all_users"),
+    path("admin/all/users/<str:id>", views.user_details, name="user_details"),
+    path("admin/order/all", views.order_list, name="order_list"),
+    # path("admin/delivered/order/all", views.delivered_order_list, name="delivered_order_list"),
+    path("admin/order/accept/<str:id>", views.order_accept, name="order_accept"),
+    path("admin/order/deny/<str:id>", views.order_deny, name="order_deny"),
+    path("admin/order/reinstate/<str:id>", views.order_reinstate, name="order_reinstate"),
+    path("admin/order/delivered/<str:id>", views.order_delivered, name="order_delivered"),
+    path("admin/order/remove/<str:id>", views.order_remove, name="order_remove"),
 
 ]
 

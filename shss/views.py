@@ -178,17 +178,21 @@ def card_decrease(request, id):#cart/increase/
 def payment_checkout(request):
     if request.method=='POST':
         data = json.loads(request.body.decode('utf-8'))
-        # print(data)
-        cards=data.get('cart_ids')
+        cards=data.get('cart_id')
         payment_method=data.get('payment_method')
+        email=data.get('email')
+        phone_number=data.get('phone_number')
+        companyname=data.get('companyName')
         shipping_address=data.get('shipping_address')
         order_id = ''.join([random.choice(string.ascii_letters
                 + string.digits) for n in range(32)])
-        # print(cards)
         for card in cards:
             obj_sp=Product_Add_TO_Card.objects.get(id=card)
             My_Check_Out.objects.create(
                 user_id=1,#request.user.id
+                email=email,
+                phone_number=phone_number,
+                companyname=companyname,
                 cart_id=obj_sp.product.id,
                 price=obj_sp.product.price,
                 qt=obj_sp.qt,
@@ -263,14 +267,44 @@ def create_product(request):
 
 
 def all_users(request):
-    users=User.objects.filter(is_staf=False)
+    users=User.objects.all()#filter(is_staf=False)
     context={
-        'users':[{'name':user.first_name,
+        'users':[{
+                  'id':user.id,
+                  'name':user.first_name,
                   'email':user.email,
-                  'created_date':user.date_joined} for user in users]
+                  'created_date':user.date_joined,
+                  'role':Group.objects.filter(user=user).last().name
+                                                    } for user in users]
     }
+
     return JsonResponse(context)
 
+def user_details(request, id):
+    obj_user=User.objects.get(id=id)
+    context={
+    'name':obj_user.first_name,
+    'orders':[{
+                'phone_number':order.phone_number,
+                'order_id':order.order_id,
+                'address':order.address,
+                'accepted':order.accept,
+                'deny':order.deny,
+                'status':order.status,
+                'payment_method':order.payment_method,
+                'date':order.date.date(),
+                'qt':order.qt,
+                'product_name':order.cart.title, 
+                'product_price':order.price, 
+                'total':order.price*order.qt
+            }for order in obj_user.my_check_out_set.all()]
+        }
+
+    return JsonResponse(context)
+
+def user_delete(request, id):
+    User.objects.filter(id=id).delete()
+    return JsonResponse({'message':"successfully remove"})
 
 def product_delete(request, id):
     Saleing_Product.objects.filter(id=id).update(active=False)
@@ -279,3 +313,55 @@ def product_delete(request, id):
 def product_update(request, id):
     obj_sp=Saleing_Product.objects.get(id=id)
     return JsonResponse({})
+
+def order_list(request):
+    users=User.objects.all()
+    output=[]
+    for user in users:
+        output.append({
+        'name':user.first_name,
+        'orders':[{
+                    'phone_number':order.phone_number,
+                    'order_id':order.order_id,
+                    'address':order.address,
+                    'accepted':order.accept,
+                    'deny':order.deny,
+                    'status':order.status,
+                    'date':order.date.date(),
+                    'qt':order.qt,
+                    'product_name':order.cart.title, 
+                    'product_price':order.price, 
+                    'total':order.price*order.qt
+                }for order in user.my_check_out_set.all()]
+        })
+    context={
+        'orders':output
+    }
+    return JsonResponse(context)
+
+def order_accept(request, id):
+    My_Check_Out.objects.filter(order_id=id).update(accept=True)
+    return JsonResponse({"Message":"Seccessfully "})
+
+
+def order_deny(request, id):
+    My_Check_Out.objects.filter(order_id=id).update(deny=True)
+    return JsonResponse({"Message":"Seccessfully "})
+
+def order_reinstate(request, id):
+    My_Check_Out.objects.filter(order_id=id).update(deny=False)
+    return JsonResponse({"Message":"Seccessfully "})
+
+
+
+def order_delivered(request, id):
+    My_Check_Out.objects.filter(order_id=id).update(status=True)
+    return JsonResponse({"Message":"Seccessfully "})
+
+
+
+
+def order_remove(request, id):
+    My_Check_Out.objects.filter(id=id).delete()
+    return JsonResponse({"Message":"Seccessfully remove"})
+

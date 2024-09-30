@@ -82,12 +82,22 @@ class My_Check_Out(models.Model):
     price=models.FloatField(null=True, blank=True)
     qt=models.FloatField()
 
-    address=models.TextField(500)
+    address=models.TextField(max_length=500)
+    phone_number=models.CharField(max_length=40, null=True, blank=True)
+    email=models.EmailField(null=True, blank=True)
+    companyname=models.CharField(max_length=250, null=True, blank=True)
     payment_method=models.CharField(max_length=255)
     date=models.DateTimeField(auto_now_add=True)
-    order_id=models.CharField(max_length=12)
-    status=models.BooleanField(default=False)
+    order_id=models.CharField(max_length=40)
 
+    accept=models.BooleanField(default=False)
+    deny=models.BooleanField(default=False)
+
+    '''
+    if true then order accepted by admin
+    else dainy the order
+    '''
+    status=models.BooleanField(default=False)
     '''
     if false then pending
     else delivarid
