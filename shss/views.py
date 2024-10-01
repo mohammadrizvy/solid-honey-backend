@@ -280,7 +280,7 @@ def all_users(request):
 
     return JsonResponse(context)
 
-def user_details(request, id):
+def user_order_details(request, id):
     obj_user=User.objects.get(id=id)
     context={
     'name':obj_user.first_name,
@@ -299,8 +299,59 @@ def user_details(request, id):
                 'total':order.price*order.qt
             }for order in obj_user.my_check_out_set.all()]
         }
+    if request.method=='POST':
+        data = json.loads(request.body.decode('utf-8'))
+
+
+        name=data.get('name')
+        email=data.get('email')
+        phone_number=data.get('phone_number')
+        role=data.get('role')
+        obj_user.first_name=name
+        obj_user.last_name=phone_number
+        obj_user.email=email
+        obj_role=Group.objects.get(name=role)
+        
+        obj_user.groups_set.add(obj_role)
+
 
     return JsonResponse(context)
+
+
+'''
+{
+"name" : "username...",
+"email" : "email...",
+phone_number : "phone_number",
+"role" : "super_user","admin","user",
+},
+'''
+
+
+def user_details(request, id):
+    obj_user=User.objects.get(id=id)
+    obj_groups=Group.objects.get(user=obj_user)
+    context={
+        'name':obj_user.first_name,
+        'email':obj_user.email,
+        'phone_number':obj_user.last_name,
+        'role':obj_groups.name,
+    }
+    if request.method=='POST':
+        data = json.loads(request.body.decode('utf-8'))
+        name=data.get('name')
+        email=data.get('email')
+        phone_number=data.get('phone_number')
+        role=data.get('role')
+        obj_user.first_name=name
+        obj_user.email=email
+        obj_user.last_name=phone_number
+        obj_role=Group.objects.get(name=role)
+        obj_user.groups.clear()
+        obj_user.groups_set.add(obj_role)
+        return JsonResponse({'message':"Successfully"})
+    return JsonResponse(context)
+
 
 def user_delete(request, id):
     User.objects.filter(id=id).delete()
@@ -326,6 +377,7 @@ def order_list(request):
                     'address':order.address,
                     'accepted':order.accept,
                     'deny':order.deny,
+                    'payment_method':order.payment_method,
                     'status':order.status,
                     'date':order.date.date(),
                     'qt':order.qt,
