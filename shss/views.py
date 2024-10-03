@@ -11,6 +11,40 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import *
 
 
+class Product_Calculation:
+    def __init__(self, product_id):
+        #self.product_id=product_id
+        self.obj_sp=product_id#Saleing_Product.objects.get(id=product_id)
+
+
+    def sale(self):
+        total_sale=My_Check_Out.objects.filter(status=True,cart__id=
+                                    self.obj_sp.id).aggregate(Sum('qt'))['qt__sum'] or 0
+        return total_sale
+    
+    def buy(self):
+        total_buy=Stock_Saleing_Product.objects.filter(sp__id=
+                                    self.obj_sp.id).aggregate(Sum('qt'))['qt__sum'] or 0
+        return total_buy
+
+    def in_stock(self):
+        return self.buy()-self.sale()
+    
+    def rating(self):
+        rating=self.obj_sp.product_rating_set.all().aggregate(Avg('rating'))['rating__avg']
+        return rating
+    
+    def images(self):
+        images=[]
+        for pi in Product_Images.objects.filter(sp=self.obj_sp):
+            try:
+                images.append(f"{pi.image.url}")
+            except:
+                images.append("")
+
+        return images if images else [""]
+
+
 def login(request):
     if request.method=="POST":
         data = json.loads(request.body.decode('utf-8'))
@@ -63,28 +97,37 @@ def profile(request):
 
 def sale_all_product(request):
     sps=Saleing_Product.objects.filter(active=True)
+    sps_=[]
+    for sp in sps:
+        pc=Product_Calculation(sp)
+        sps_.append({'id':sp.id, 'title':sp.title, 'category':sp.category.category, 
+        'description':sp.discription,
+        'price':sp.price, 
+        'discount':Product_Discount.objects.get(sp=sp).amount if Product_Discount.objects.filter(sp=sp) else  00, 
+        'stock': pc.in_stock(),
+        'rating': pc.rating(),
+        'images':pc.images()#[img.image.url for img in Product_Images.objects.filter(sp=sp)] # sp.product_images_set.all()]
+                })
+        
     context={
-        'sps':[{'id':sp.id, 'title':sp.title, 'category':sp.category.category, 
-                'description':sp.discription,
-                'price':sp.price, 
-                'discount':10,#sp.product_discount if sp.product_discount else  00, 
-                'stock': random.randint(100,1000),
-                'rating': sp.product_rating_set.all().aggregate(Avg('rating'))['rating__avg'],
-                'images':[img.image.url for img in sp.product_images_set.all()]} for sp in sps]
+        'sps':sps_
     }
     return JsonResponse(context)
 
 def sale_one_product(request, id):
     sp=Saleing_Product.objects.get(id=id)
+    discount=Product_Discount.objects.filter(sp__id=id)
+    pc=Product_Calculation(sp)
     context={
         'id':sp.id, 
         'title':sp.title, 
         'category':sp.category.category, 
         'description':sp.discription,
         'price':sp.price, 
-        'stock': random.randint(100,1000),
-        'rating': sp.product_rating_set.all().aggregate(Avg('rating'))['rating__avg'],
-        'images':[img.image.url for img in sp.product_images_set.all()]
+        'discount': 00 if not discount else discount.last().amount,
+        'stock': pc.in_stock(),
+        'rating': pc.rating(),
+        'images':pc.images()
 
     }
     return JsonResponse(context)
@@ -102,6 +145,8 @@ def create_new_account(request):
         new_user=User(username=email, email=email, first_name=name)
         new_user.set_password(password)
         new_user.save()
+        obj_group = Group.objects.get(id=2)
+        obj_group.user_set.add(new_user)
     return JsonResponse({"successfull":'date entry successfully'})
 
 
@@ -111,6 +156,7 @@ def create_new_account(request):
 def add_to_card_entry(request):
     data = json.loads(request.body.decode('utf-8'))
     id=data.get('productId')
+    obj_sp=Saleing_Product.objects.get(id=id)
     check=Product_Add_TO_Card.objects.filter(user_id=1,#request.user,
                                     product_id=id,
                                     active=True
@@ -121,8 +167,11 @@ def add_to_card_entry(request):
         ck.save()
         return JsonResponse({'message':'Successfully'})
     else:
+        discounts=Product_Discount.objects.filter(sp__id=id)
         Product_Add_TO_Card.objects.create(user_id=1,#request.user,
                                     product_id=id,
+                                    amount=obj_sp.price if not discounts 
+                                                        else obj_sp.price-discounts.last().amount
                                     )
         return JsonResponse({'message':'Successfully'})
     return JsonResponse({'message':'Pending'})
@@ -134,11 +183,11 @@ def add_to_card_list(request):
     
     total=0
     for patc in patcs:
-        total+=patc.product.price*patc.qt
+        total+=patc.total_price()
     context={
         'patcs':[{'img':patc.product.product_images_set.last().image.url if patc.product.product_images_set.all() else "None", 
                   'product_name':patc.product.title,
-                  'price':patc.product.price*patc.qt, 
+                  'price':patc.total_price(),#patc.product.price*patc.qt, 
                   'qt':patc.qt, 
                   'id':patc.id,
                   'category':patc.product.category.category}
@@ -188,19 +237,21 @@ def payment_checkout(request):
                 + string.digits) for n in range(32)])
         for card in cards:
             obj_sp=Product_Add_TO_Card.objects.get(id=card)
+            discount=Product_Discount.objects.filter(id=obj_sp.product.id)
             My_Check_Out.objects.create(
                 user_id=1,#request.user.id
                 email=email,
                 phone_number=phone_number,
                 companyname=companyname,
                 cart_id=obj_sp.product.id,
-                price=obj_sp.product.price,
+                price=obj_sp.product.price if not discount else obj_sp.product.price-discount.last().amount,
                 qt=obj_sp.qt,
                 order_id=order_id,
                 address=shipping_address,
                 payment_method=payment_method,
                 status=False
             )
+            obj_sp.delete()
         return JsonResponse({
                     "order_id": order_id,
                     "message": "Payment processed successfully",
@@ -240,7 +291,6 @@ def product_categories(request):
 def create_product(request):
     if request.method=="POST":
         title = request.POST.get('title')
-        image = request.FILES.get('image')
         category = request.POST.get('category')
         description = request.POST.get('description')
         price = request.POST.get('price')
@@ -259,10 +309,13 @@ def create_product(request):
         new_sp.stock_saleing_product_set.create(
             qt=stock
         )
-        #for image in image:
-        new_sp.product_images_set.create(
-                image=image
-            )
+        for i in range(1,5):
+            image = request.FILES.get(f'image{i}')
+            if not image:
+                break
+            new_sp.product_images_set.create(
+                    image=image
+                )
     return JsonResponse({})
 
 
@@ -318,20 +371,13 @@ def user_order_details(request, id):
     return JsonResponse(context)
 
 
-'''
-{
-"name" : "username...",
-"email" : "email...",
-phone_number : "phone_number",
-"role" : "super_user","admin","user",
-},
-'''
 
 
 def user_details(request, id):
     obj_user=User.objects.get(id=id)
     obj_groups=Group.objects.get(user=obj_user)
     context={
+        'id':obj_user.id,
         'name':obj_user.first_name,
         'email':obj_user.email,
         'phone_number':obj_user.last_name,
@@ -348,7 +394,8 @@ def user_details(request, id):
         obj_user.last_name=phone_number
         obj_role=Group.objects.get(name=role)
         obj_user.groups.clear()
-        obj_user.groups_set.add(obj_role)
+        obj_user.groups.add(obj_role)
+        obj_user.save()
         return JsonResponse({'message':"Successfully"})
     return JsonResponse(context)
 
@@ -357,13 +404,43 @@ def user_delete(request, id):
     User.objects.filter(id=id).delete()
     return JsonResponse({'message':"successfully remove"})
 
+# def user_role_update(request, id):
+#     # User.objects.filter(id=id).delete()
+#     obj
+#     return JsonResponse({'message':"successfully remove"})
+
 def product_delete(request, id):
     Saleing_Product.objects.filter(id=id).update(active=False)
     return JsonResponse({'message':"Product delete sucessfully"})
 
 def product_update(request, id):
     obj_sp=Saleing_Product.objects.get(id=id)
-    return JsonResponse({})
+    if request.method == 'POST':
+        title=request.POST.get('title')
+        category=request.POST.get('category')
+        obj_cat=Web_Category.objects.get(category=category)
+        description=request.POST.get('description')
+        price=request.POST.get('price')
+        discount=request.POST.get('discount')
+        stock=request.POST.get('stock')
+        rating=request.POST.get('rating')
+        image=request.POST.get('image')
+        obj_sp.title=title
+        obj_sp.category=obj_cat 
+        obj_sp.discription=description
+        obj_sp.price=price
+        if discount:
+            Product_Discount.objects.create(sp=obj_sp,
+                                            amount=discount)
+        if stock:
+            Stock_Saleing_Product.objects.create(sp=obj_sp,
+                                                 qt=stock)
+        if rating:
+            Product_Rating.objects.create(sp=obj_sp,rating=rating)
+        if image:
+            Product_Images.objects.create(sp=obj_sp, 
+                                          image=image)
+    return JsonResponse({'message':'successfully'})
 
 def order_list(request):
     users=User.objects.all()

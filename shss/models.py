@@ -60,6 +60,7 @@ class Product_Rating(models.Model):
 class Product_Add_TO_Card(models.Model):
     product=models.ForeignKey(Saleing_Product, on_delete=models.CASCADE)
     qt=models.FloatField(default=1,null=True, blank=True)
+    amount=models.FloatField(null=True, blank=True)
     user=models.ForeignKey(User, on_delete=models.CASCADE)
     date=models.DateTimeField(auto_now_add=True)
     active=models.BooleanField(default=True)
@@ -69,7 +70,7 @@ class Product_Add_TO_Card(models.Model):
     '''
 
     def total_price(self):
-        return self.product.price*self.qt
+        return self.amount*self.qt
          
 
     def __str__(self):
@@ -89,7 +90,6 @@ class My_Check_Out(models.Model):
     payment_method=models.CharField(max_length=255)
     date=models.DateTimeField(auto_now_add=True)
     order_id=models.CharField(max_length=40)
-
     accept=models.BooleanField(default=False)
     deny=models.BooleanField(default=False)
 
